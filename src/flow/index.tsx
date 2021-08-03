@@ -93,6 +93,9 @@ class Flow extends Component {
     )
 
     const graph = new Graph({
+      // width: 16000,
+      // height: 6000,
+      panning: true,
       container: this.GraphContainer,
       grid: {
         visible: true
@@ -190,8 +193,55 @@ class Flow extends Component {
     
           return true
         },
+      },
+      mousewheel: {
+        enabled: true,
+        modifiers: ['ctrl', 'meta'],
       }
     })
+
+    const ports = (id):any =>  ({
+      items: [
+        { group: 'in', id: `${id}_in_1`, connected: true },
+        { group: 'out', id: `${id}_out_1` },
+        { group: 'out', id: `${id}_out_2` }
+      ],
+      groups: {
+        in: {
+          position: { name: 'top' },
+          zIndex: 1,
+        },
+        out: {
+          position: { name: 'bottom' },
+          zIndex: 1,
+        },
+      }
+    })
+
+    let nodeList = []
+    let Len = []
+    let tmp = 1
+    let tmpX = 0
+    let tmpY = 0
+    new Array(255).fill(0).forEach((item, index) => {
+      if ((index * 2 + 1) === tmp) {
+        tmpY += 500
+        tmpX = 0
+        Len.push(tmp)
+        tmp = tmp * 2 + 1
+      }
+      nodeList.push({
+        node: index,
+        x: tmpX += 320,
+        y: tmpY,
+        width: 260,
+        height: 400,
+        shape: 'algo-node',
+        label: `节点${index}`,
+        ports: ports(index)
+      })
+    })
+
     this.setState({graph}, () => {
 
       graph.on('edge:connected', (args) => {
@@ -211,126 +261,29 @@ class Flow extends Component {
           },
         })
       })
-      
-      graph.addNode({
-        node: 1,
-        x: 380,
-        y: 180,
-        width: 160,
-        height: 30,
-        shape: 'algo-node',
-        label: '归一化',
-        ports: {
-          items: [
-            { group: 'in', id: 'in1' },
-            { group: 'in', id: 'in2' },
-            { group: 'out', id: 'out1' },
-            { group: 'out', id: 'out2' },
-          ],
-          groups: {
-            in: {
-              position: { name: 'top' },
-              zIndex: 1,
-            },
-            out: {
-              position: { name: 'bottom' },
-              zIndex: 1,
-            },
-          },
-        },
+
+      const sourceList = []
+      nodeList.forEach((item) => {
+        sourceList.push(graph.addNode(item))
       })
-      
-      const source = graph.addNode({
-        node: 2,
-        x: 200,
-        y: 50,
-        width: 160,
-        height: 30,
-        shape: 'algo-node',
-        label: 'SQL',
-        ports: {
-          items: [
-            { group: 'in', id: 'in1' },
-            { group: 'in', id: 'in2' },
-            { group: 'out', id: 'out1' },
-          ],
-          groups: {
-            in: {
-              position: { name: 'top' },
-              zIndex: 1,
-            },
-            out: {
-              position: { name: 'bottom' },
-              zIndex: 1,
-            },
-          },
-        },
-      })
-      
-      const target = graph.addNode({
-        node: 3,
-        x: 120,
-        y: 260,
-        width: 160,
-        height: 30,
-        shape: 'algo-node',
-        label: '序列化',
-        ports: {
-          items: [
-            { group: 'in', id: 'in1', connected: true },
-            { group: 'in', id: 'in2' },
-            { group: 'out', id: 'out1' },
-          ],
-          groups: {
-            in: {
-              position: { name: 'top' },
-              zIndex: 1,
-            },
-            out: {
-              position: { name: 'bottom' },
-              zIndex: 1,
-            },
-          },
-        },
-      })
-      
-      graph.addNode({
-        node: 4,
-        x: 420,
-        y: 260,
-        width: 160,
-        height: 30,
-        shape: 'algo-node',
-        label: '序列化2',
-        ports: {
-          items: [
-            { group: 'in', id: 'in1' },
-            { group: 'in', id: 'in2' },
-            { group: 'out', id: 'out1' },
-          ],
-          groups: {
-            in: {
-              position: { name: 'top' },
-              zIndex: 1,
-            },
-            out: {
-              position: { name: 'bottom' },
-              zIndex: 1,
-            },
-          },
-        },
-      })
-      
-      graph.addEdge({
-        source: { cell: source, port: 'out1' },
-        target: { cell: target, port: 'in1' },
-        attrs: {
-          line: {
-            stroke: '#808080',
-            strokeWidth: 1,
-            targetMarker: '',
-          },
-        },
+
+      sourceList.forEach((item, index) => {
+        if (((index * 2) + 1) < sourceList.length - 1) {
+          let source = item
+          let target = sourceList[(index * 2) + 1]
+          graph.addEdge({
+            source: { cell: source, port: nodeList[index].ports.items[1].id},
+            target: { cell: target, port: nodeList[(index * 2) + 1].ports.items[0].id}
+          })
+        }
+        if (((index * 2) + 1) < sourceList.length - 1) {
+          let source = item
+          let target2 = sourceList[(index * 2) + 2]
+          graph.addEdge({
+            source: { cell: source, port: nodeList[index].ports.items[1].id},
+            target: { cell: target2, port: nodeList[(index * 2) + 2].ports.items[0].id}
+          })
+        }
       })
 
       graph.on('node:dblclick', ({ node }) => {
@@ -340,6 +293,8 @@ class Flow extends Component {
       graph.on('edge:dblclick', ({ edge }) => {
         graph.removeEdge(edge)
       })
+
+      graph.zoomToFit()
       
     })
   }
@@ -406,6 +361,10 @@ class Flow extends Component {
     this.initGraph()
   }
 
+  componentWillUnmount () {
+    this.state.graph.dispose()
+  }
+
   render() {
 
     const { isModalVisible } = this.state
@@ -426,7 +385,10 @@ class Flow extends Component {
     /* eslint-enable no-template-curly-in-string */
 
     return <div className='Flow'>
-      <div ref={this.RefContainer} className='container'></div>
+      <div className='container'>
+        <p style={{color: 'red', position: 'fixed'}}>ctrl + 鼠标滚轮 或者 meta + 鼠标滚轮 进行 缩放</p>
+        <div style={{ width: '100%', height: '100%' }} ref={this.RefContainer}></div>
+      </div>
       <div className='edit-box'>
         <Form {...layout} name="nest-messages" onFinish={this.HandleAddNode} validateMessages={validateMessages}>
           <Form.Item name={['form', 'label']} label="内容" rules={[{ required: true }]}>
